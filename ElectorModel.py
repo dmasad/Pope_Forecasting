@@ -18,6 +18,17 @@ import random
 class Elector(object):
     '''
     Elector agent.
+
+    Attributes:
+        opinions: A dictionary of options to vote on, and associated weights:
+            {Outcome1: Preference, Outcome2: Preference...}
+    
+    Methods:
+        __init__(opinion): Instantiate the agent with an opinion dictionary
+        first_pick(): Get the agent's initial vote,.
+        next_vote(previous_votes): Get an agent's vote after the results of the
+            previous round of voting are already known.
+
     '''
 
     def _weighted_random(self, weight_dict):
@@ -85,6 +96,24 @@ class Elector(object):
 class Election(object):
     '''
     Supervisor class for elections.
+
+    Attributes:
+        electors: Dictionary of elector agents
+        options: Options to be voted on
+        elector_count: How many electors there are
+        max_rounds: Maximum rounds for voting to go on for
+        fraction_required: What fraction of votes needed to win
+        rounds: How many rounds of voting have there been
+        vote_rounds: A list of dictionaries, one for each round of voting
+            with options as the keys and votes received as the values.
+        winner: Who has finally won the election
+
+    Methods:
+        __init__(options, fraction_required, max_rounds): Create a new Election
+        add_elector(preference_set, name): Add a new elector with a specified
+            dictionary of preferences
+        vote(): Execute the next round of voting.
+        run_elections(): Run an entire election process until a winner is chosen
     '''
 
     def __init__(self, options, fraction_required=0.5, max_rounds=None):
@@ -95,7 +124,7 @@ class Election(object):
             fraction_required: Percent of votes needed to win
             max_rounds: Maximum number of rounds of voting.
         '''
-
+        self.winner = None
         self.options = options
         self.electors = {}
         self.rounds = 0
@@ -140,26 +169,30 @@ class Election(object):
     def run_elections(self):
         '''
         Run an entire election.
+
+        Iterates the vote() method until one outcome gets fraction_required of
+        the votes, or maximum rounds reached. Populates the winner attribute.
+
+        TODO: This could be more robust, and include rules to handle ties, 
+        or circumstances where fraction_required is less than 50%.
+
         '''
 
-        winner = None
-
-        while winner is None and self.rounds < self.max_rounds:
+        while self.winner is None and (self.rounds < self.max_rounds or 
+                                            self.max_rounds is None): 
             election_results = self.vote()
             for result, votes in election_results.items():
+                # Note: Doesn't hande fraction_required < 0.5 well yet:
                 if votes/self.elector_count >= self.fraction_required:
-                    winner = result
+                    self.winner = result
 
-        # Maximum rounds reached, pick biggest vote-getter:
-        if winner is None and self.rounds >= self.max_rounds:
-            max_votes = 0
-            max_option = None
-            election_results = self.vote()
-            for result, votes in election_results.items():
-                if votes > max_votes:
-                    max_option = result
-                    max_votes = votes
-        return winner
+        # Maximum rounds reached, pick the outcome with a plurality:
+        if self.winner is None and self.rounds >= self.max_rounds:
+            # Sort by votes, descending:
+            sorted_votes = sorted(election_results.keys(), 
+                key=lambda x: election_results[x], reverse=True)
+            # Get the top vote-getter
+            self.winner = sorted_votes[0]
 
 
 
